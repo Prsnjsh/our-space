@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>Our Space</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#0E1B2E; --panel:#16273F; --panel2:#1E3350;
+    --gold:#D4A02A; --cream:#F4EBD8; --teal:#3FB6A8;
+    --ink:#F4EBD8; --muted:#8FA3BF; --line:#26405F;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{background:var(--bg);color:var(--ink);font-family:'DM Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3,.serif{font-family:'Cormorant Garamond',serif;}
+  #app{max-width:640px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;}
+  input,textarea,button,select{font-family:inherit;font-size:16px;}
+  button{cursor:pointer;border:none;}
+  .gold-btn{background:var(--gold);color:#1a1206;font-weight:700;border-radius:12px;padding:13px 16px;width:100%;}
+  .ghost-btn{background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:10px;padding:10px 14px;}
+  .field{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:13px 14px;margin-top:8px;outline:none;}
+  .field:focus{border-color:var(--gold);}
+  .muted{color:var(--muted);}
+  .center{display:flex;align-items:center;justify-content:center;flex:1;padding:24px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;}
+  .link{color:var(--gold);background:none;padding:0;text-decoration:underline;}
+  .topbar{padding:16px 18px 10px;display:flex;align-items:center;justify-content:space-between;}
+  .topbar h1{margin:0;font-size:26px;color:var(--cream);letter-spacing:.3px;}
+  .spacebar{display:flex;gap:8px;padding:4px 14px 10px;overflow-x:auto;}
+  .chip{position:relative;white-space:nowrap;background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:8px 16px;font-weight:500;}
+  .chip.active{background:var(--gold);color:#1a1206;border-color:var(--gold);}
+  .dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--teal);border:2px solid var(--bg);}
+  .msgs{flex:1;overflow-y:auto;padding:8px 14px 14px;display:flex;flex-direction:column;gap:8px;}
+  .bubble{max-width:78%;padding:10px 13px;border-radius:16px;line-height:1.35;word-wrap:break-word;}
+  .them{align-self:flex-start;background:var(--panel2);border-bottom-left-radius:5px;}
+  .me{align-self:flex-end;background:var(--gold);color:#1a1206;border-bottom-right-radius:5px;}
+  .bubble .who{display:block;font-size:11px;opacity:.7;margin-bottom:2px;}
+  .composer{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:var(--bg);align-items:flex-end;padding-bottom:calc(10px + env(safe-area-inset-bottom));}
+  .composer textarea{flex:1;resize:none;max-height:120px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:18px;padding:11px 14px;outline:none;}
+  .send{background:var(--gold);color:#1a1206;border-radius:50%;width:44px;height:44px;font-size:20px;flex:none;}
+  .body{flex:1;overflow-y:auto;padding:8px 14px 90px;}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .count{font-family:'Cormorant Garamond',serif;font-size:34px;color:var(--gold);line-height:1;}
+  .sub{font-size:13px;color:var(--muted);}
+  .pill{font-size:11px;background:var(--panel2);color:var(--muted);border-radius:999px;padding:3px 9px;}
+  .check{width:24px;height:24px;border-radius:7px;border:2px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:15px;}
+  .check.on{background:var(--gold);border-color:var(--gold);color:#1a1206;}
+  .toggle{width:46px;height:28px;border-radius:999px;background:var(--line);position:relative;flex:none;transition:.15s;}
+  .toggle.on{background:var(--teal);}
+  .knob{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.15s;}
+  .toggle.on .knob{left:21px;}
+  .sect{font-family:'Cormorant Garamond',serif;color:var(--cream);font-size:20px;margin:18px 2px 8px;}
+  .nav{position:sticky;bottom:0;display:flex;background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);}
+  .nav button{flex:1;background:none;color:var(--muted);padding:11px 4px 9px;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;}
+  .nav button .ic{font-size:19px;}
+  .nav button.active{color:var(--gold);}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ===== CONFIG — Supabase dashboard -> Project Settings -> API ===== */
+const CFG = {
+  url: "https://YOUR-PROJECT.supabase.co",
+  key: "YOUR-ANON-PUBLIC-KEY"
+};
+
+let db, session=null, me=null, couple=null;
+let spaces=[], membersById={}, activeSpaceId=null, unread={};
+let tab="chat", msgChannel=null;
+
+const $ = (h)=>{const t=document.createElement("template");t.innerHTML=h.trim();return t.content.firstChild;};
+const app = ()=>document.getElementById("app");
+const esc = (s)=>(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+async function boot(){
+  db = supabase.createClient(CFG.url, CFG.key);
+  const { data:{ session:s } } = await db.auth.getSession();
+  session = s;
+  db.auth.onAuthStateChange((_e,s2)=>{ session=s2; route(); });
+  route();
+}
+async function route(){ if(!session){ renderAuth(); return; } await loadMe(); }
+
+function renderAuth(){
+  let mode="in"; app().innerHTML="";
+  const box=$(`<div class="center"></div>`);
+  const card=$(`<div class="card" style="width:100%;max-width:360px;text-align:center;">
+    <h1 class="serif" style="color:var(--cream);font-size:34px;margin:4px 0 2px;">Our Space</h1>
+    <p class="muted" style="margin:0 0 16px;">a private place for the two of us</p>
+    <input id="em" class="field" type="email" placeholder="email" autocomplete="email" />
+    <input id="pw" class="field" type="password" placeholder="password" autocomplete="current-password" />
+    <div id="msg" class="sub" style="min-height:18px;margin-top:8px;color:var(--gold);"></div>
+    <button id="go" class="gold-btn" style="margin-top:6px;">Sign in</button>
+    <button id="sw" class="link" style="margin-top:14px;">Need an account? Sign up</button></div>`);
+  box.appendChild(card); app().appendChild(box);
+  const msg=(t)=>card.querySelector("#msg").textContent=t;
+  card.querySelector("#sw").onclick=()=>{
+    mode=mode==="in"?"up":"in";
+    card.querySelector("#go").textContent=mode==="in"?"Sign in":"Create account";
+    card.querySelector("#sw").textContent=mode==="in"?"Need an account? Sign up":"Have an account? Sign in";
+    msg("");
+  };
+  card.querySelector("#go").onclick=async()=>{
+    const email=card.querySelector("#em").value.trim();
+    const password=card.querySelector("#pw").value;
+    if(!email||!password){ msg("Enter email and password."); return; }
+    msg("…");
+    const fn = mode==="in" ? db.auth.signInWithPassword({email,password}) : db.auth.signUp({email,password});
+    const { error } = await fn;
+    if(error) msg(error.message); else if(mode==="up") msg("Account created — sign in.");
+  };
+}
+
+async function loadMe(){
+  const { data:mem } = await db.from("members").select("*").eq("id", session.user.id).maybeSingle();
+  if(!mem){ renderSetupNeeded(); return; }
+  me=mem;
+  const { data:c } = await db.from("couples").select("*").eq("id", mem.couple_id).single(); couple=c;
+  const { data:mm } = await db.from("members").select("*").eq("couple_id", mem.couple_id);
+  membersById={}; (mm||[]).forEach(x=>membersById[x.id]=x);
+  const { data:sp } = await db.from("spaces").select("*").eq("couple_id", mem.couple_id).order("sort_order");
+  spaces=(sp||[]).filter(s=> s.module==="personal" || couple.modules[s.module]);
+  if(!activeSpaceId || !spaces.find(s=>s.id===activeSpaceId)) activeSpaceId=spaces[0]?.id||null;
+  await loadUnread(); subscribe(); render();
+}
+function renderSetupNeeded(){
+  app().innerHTML="";
+  const box=$(`<div class="center"><div class="card" style="max-width:360px;text-align:center;">
+    <h2 class="serif" style="color:var(--cream);">You're signed in 🎉</h2>
+    <p class="muted">Now run the seed SQL (once) to link this account to your couple, then reopen.</p>
+    <button id="out" class="ghost-btn" style="margin-top:10px;">Sign out</button></div></div>`);
+  box.querySelector("#out").onclick=()=>db.auth.signOut(); app().appendChild(box);
+}
+
+async function loadUnread(){
+  unread={};
+  const { data:reads } = await db.from("space_reads").select("*").eq("member_id", me.id);
+  const rm={}; (reads||[]).forEach(r=>rm[r.space_id]=r.last_read_at);
+  for(const s of spaces){
+    const since=rm[s.id]||"1970-01-01";
+    const { count } = await db.from("messages").select("id",{count:"exact",head:true})
+      .eq("space_id",s.id).gt("created_at",since).neq("sender_id",me.id);
+    unread[s.id]=(count||0)>0;
+  }
+}
+function subscribe(){
+  if(msgChannel) db.removeChannel(msgChannel);
+  msgChannel=db.channel("m-"+couple.id)
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"couple_id=eq."+couple.id},
+      p=>{ const m=p.new;
+        if(tab==="chat" && m.space_id===activeSpaceId){ appendBubble(m); markRead(activeSpaceId); }
+        else if(m.sender_id!==me.id){ unread[m.space_id]=true; paintDots(); }
+      }).subscribe();
+}
+async function markRead(sid){
+  await db.from("space_reads").upsert({member_id:me.id,space_id:sid,last_read_at:new Date().toISOString()});
+  unread[sid]=false; paintDots();
+}
+function paintDots(){
+  document.querySelectorAll("[data-space]").forEach(el=>{
+    const has=unread[el.dataset.space]; let d=el.querySelector(".dot");
+    if(has&&!d){ d=$(`<span class="dot"></span>`); el.appendChild(d); }
+    if(!has&&d) d.remove();
+  });
+}
+
+function render(){
+  app().innerHTML="";
+  const shell=$(`<div style="flex:1;display:flex;flex-direction:column;min-height:0;"></div>`);
+  shell.appendChild(topbar());
+  shell.appendChild($(`<div id="view" style="flex:1;display:flex;flex-direction:column;min-height:0;"></div>`));
+  shell.appendChild(bottomNav());
+  app().appendChild(shell); paintView();
+}
+function topbar(){
+  const titles={chat:"Messages",calendar:"Calendar",lists:"Lists",settings:couple.name};
+  return $(`<div class="topbar"><h1 class="serif">${esc(titles[tab])}</h1></div>`);
+}
+function bottomNav(){
+  const items=[["chat","💬","Chat",true],["calendar","📅","Calendar",couple.modules.calendar],
+    ["lists","✓","Lists",couple.modules.lists],["settings","⚙︎","Settings",true]].filter(i=>i[3]);
+  const nav=$(`<div class="nav"></div>`);
+  items.forEach(([id,ic,label])=>{
+    const b=$(`<button class="${tab===id?"active":""}"><span class="ic">${ic}</span>${label}</button>`);
+    b.onclick=()=>{ tab=id; render(); }; nav.appendChild(b);
+  });
+  return nav;
+}
+function paintView(){ if(tab==="chat")viewChat();else if(tab==="calendar")viewCalendar();else if(tab==="lists")viewLists();else viewSettings(); }
+
+async function viewChat(){
+  const v=document.getElementById("view");
+  const bar=$(`<div class="spacebar"></div>`);
+  spaces.forEach(s=>{
+    const c=$(`<button class="chip ${s.id===activeSpaceId?"active":""}" data-space="${s.id}">${esc(s.name)}</button>`);
+    c.onclick=()=>{ activeSpaceId=s.id; viewChat(); }; bar.appendChild(c);
+  });
+  const list=$(`<div class="msgs" id="msgs"></div>`);
+  const comp=$(`<div class="composer"><textarea id="ta" rows="1" placeholder="Message…"></textarea><button class="send" id="snd">➤</button></div>`);
+  v.innerHTML=""; v.appendChild(bar); v.appendChild(list); v.appendChild(comp); paintDots();
+  const ta=comp.querySelector("#ta");
+  ta.addEventListener("input",()=>{ ta.style.height="auto"; ta.style.height=Math.min(ta.scrollHeight,120)+"px"; });
+  const send=async()=>{ const body=ta.value.trim(); if(!body||!activeSpaceId)return;
+    ta.value=""; ta.style.height="auto";
+    await db.from("messages").insert({couple_id:couple.id,space_id:activeSpaceId,sender_id:me.id,body}); };
+  comp.querySelector("#snd").onclick=send;
+  const { data:msgs } = await db.from("messages").select("*").eq("space_id",activeSpaceId).order("created_at",{ascending:true}).limit(200);
+  (msgs||[]).forEach(appendBubble); markRead(activeSpaceId);
+}
+function appendBubble(m){
+  const box=document.getElementById("msgs"); if(!box)return;
+  const mine=m.sender_id===me.id; const who=membersById[m.sender_id]?.display_name||"";
+  box.appendChild($(`<div class="bubble ${mine?"me":"them"}">${mine?"":`<span class="who">${esc(who)}</span>`}${esc(m.body)}</div>`));
+  box.scrollTop=box.scrollHeight;
+}
+
+function nextOccur(dstr,yearly){
+  const t=new Date(); t.setHours(0,0,0,0); const d=new Date(dstr+"T00:00:00");
+  if(yearly){ d.setFullYear(t.getFullYear()); if(d<t) d.setFullYear(t.getFullYear()+1); } return d;
+}
+const daysUntil=(d)=>{const t=new Date();t.setHours(0,0,0,0);return Math.round((d-t)/86400000);};
+const fmt=(d)=>d.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
+
+async function viewCalendar(){
+  const v=document.getElementById("view"); v.innerHTML=`<div class="body" id="cal"></div>`;
+  const wrap=v.querySelector("#cal");
+  const { data:evs } = await db.from("events").select("*").eq("couple_id",couple.id);
+  const listAll=(evs||[]).map(e=>({...e,when:nextOccur(e.event_date,e.recurs_yearly)})).sort((a,b)=>a.when-b.when);
+  const counts=listAll.filter(e=>e.is_countdown && daysUntil(e.when)>=0).slice(0,4);
+  if(counts.length){
+    const strip=$(`<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;"></div>`);
+    counts.forEach(e=>strip.appendChild($(`<div class="card" style="min-width:130px;text-align:center;">
+      <div class="count">${daysUntil(e.when)}</div><div class="sub">days</div>
+      <div style="margin-top:6px;font-weight:500;">${esc(e.title)}</div></div>`)));
+    wrap.appendChild($(`<div class="sect">Countdowns</div>`)); wrap.appendChild(strip);
+  }
+  wrap.appendChild($(`<div class="sect">Upcoming</div>`));
+  const upcoming=listAll.filter(e=>daysUntil(e.when)>=0);
+  if(!upcoming.length) wrap.appendChild($(`<p class="muted">Nothing on the calendar yet.</p>`));
+  upcoming.forEach(e=>{
+    const n=daysUntil(e.when);
+    const card=$(`<div class="card" style="margin-bottom:8px;"><div class="row"><div>
+      <div style="font-weight:500;">${esc(e.title)} ${e.recurs_yearly?'<span class="pill">yearly</span>':''}</div>
+      <div class="sub">${fmt(e.when)} · ${n===0?"today":n+" days"}</div>
+      ${e.notes?`<div class="sub" style="margin-top:3px;">${esc(e.notes)}</div>`:""}</div>
+      <button class="ghost-btn del" style="padding:6px 10px;">✕</button></div></div>`);
+    card.querySelector(".del").onclick=async()=>{ await db.from("events").delete().eq("id",e.id); viewCalendar(); };
+    wrap.appendChild(card);
+  });
+  const add=$(`<div class="card" style="margin-top:14px;"><div class="sect" style="margin-top:0;">Add event</div>
+    <input id="et" class="field" placeholder="Title (e.g. Anniversary)" />
+    <input id="ed" class="field" type="date" />
+    <label class="row" style="margin-top:10px;"><span class="sub">Countdown pin</span><span id="tc" class="toggle"><span class="knob"></span></span></label>
+    <label class="row" style="margin-top:8px;"><span class="sub">Repeats yearly</span><span id="ty" class="toggle"><span class="knob"></span></span></label>
+    <button id="ea" class="gold-btn" style="margin-top:12px;">Add</button></div>`);
+  let pc=false,py=false;
+  add.querySelector("#tc").onclick=e=>{pc=!pc;e.currentTarget.classList.toggle("on",pc);};
+  add.querySelector("#ty").onclick=e=>{py=!py;e.currentTarget.classList.toggle("on",py);};
+  add.querySelector("#ea").onclick=async()=>{
+    const title=add.querySelector("#et").value.trim(); const date=add.querySelector("#ed").value;
+    if(!title||!date)return;
+    await db.from("events").insert({couple_id:couple.id,title,event_date:date,is_countdown:pc,recurs_yearly:py,created_by:me.id});
+    viewCalendar();
+  };
+  wrap.appendChild(add);
+}
+
+async function viewLists(){
+  const v=document.getElementById("view"); v.innerHTML=`<div class="body" id="ls"></div>`;
+  const wrap=v.querySelector("#ls");
+  const { data:lists } = await db.from("lists").select("*").eq("couple_id",couple.id).order("created_at");
+  const { data:items } = await db.from("list_items").select("*").eq("couple_id",couple.id).order("created_at");
+  const byList={}; (items||[]).forEach(i=>{(byList[i.list_id]=byList[i.list_id]||[]).push(i);});
+  (lists||[]).forEach(L=>{
+    const card=$(`<div class="card" style="margin-bottom:12px;"><div class="row">
+      <div class="sect" style="margin:0;">${esc(L.name)}</div>
+      <button class="ghost-btn dl" style="padding:5px 9px;">✕</button></div>
+      <div class="items"></div>
+      <div class="row" style="margin-top:8px;">
+        <input class="field ni" style="margin:0;" placeholder="Add item…" />
+        <button class="gold-btn ai" style="width:auto;padding:11px 16px;margin-left:8px;">+</button></div></div>`);
+    const items_el=card.querySelector(".items");
+    (byList[L.id]||[]).forEach(it=>{
+      const r=$(`<div class="row" style="padding:7px 0;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="check ${it.done?"on":""}">${it.done?"✓":""}</span>
+          <span style="${it.done?"opacity:.5;text-decoration:line-through;":""}">${esc(it.text)}</span></div>
+        <button class="link ri" style="color:var(--muted);">remove</button></div>`);
+      r.querySelector(".check").onclick=async()=>{ await db.from("list_items").update({done:!it.done}).eq("id",it.id); viewLists(); };
+      r.querySelector(".ri").onclick=async()=>{ await db.from("list_items").delete().eq("id",it.id); viewLists(); };
+      items_el.appendChild(r);
+    });
+    card.querySelector(".ai").onclick=async()=>{ const t=card.querySelector(".ni").value.trim(); if(!t)return;
+      await db.from("list_items").insert({couple_id:couple.id,list_id:L.id,text:t,created_by:me.id}); viewLists(); };
+    card.querySelector(".dl").onclick=async()=>{ await db.from("lists").delete().eq("id",L.id); viewLists(); };
+    wrap.appendChild(card);
+  });
+  const nl=$(`<div class="card"><div class="row">
+    <input id="nl" class="field" style="margin:0;" placeholder="New list (Groceries, To-do…)" />
+    <button id="cl" class="gold-btn" style="width:auto;padding:11px 16px;margin-left:8px;">Create</button></div></div>`);
+  nl.querySelector("#cl").onclick=async()=>{ const name=nl.querySelector("#nl").value.trim(); if(!name)return;
+    await db.from("lists").insert({couple_id:couple.id,name}); viewLists(); };
+  wrap.appendChild(nl);
+}
+
+async function viewSettings(){
+  const v=document.getElementById("view"); v.innerHTML=`<div class="body" id="st"></div>`;
+  const wrap=v.querySelector("#st");
+  wrap.appendChild($(`<div class="sect" style="margin-top:2px;">Us</div>`));
+  wrap.appendChild($(`<div class="card">${Object.values(membersById).map(m=>`<div style="padding:4px 0;">${esc(m.display_name)}</div>`).join("")}</div>`));
+  wrap.appendChild($(`<div class="sect">Modules</div>`));
+  const mods=[["business","Business channel"],["faith","Faith channel"],["calendar","Calendar"],["lists","Lists"],
+    ["budget","Budget · Plaid (coming soon)"],["assistant","Shared assistant (coming soon)"],["kids","Kids calendar (coming soon)"]];
+  const mcard=$(`<div class="card"></div>`);
+  mods.forEach(([key,label])=>{
+    const on=!!couple.modules[key]; const soon=/coming soon/.test(label);
+    const r=$(`<label class="row" style="padding:9px 0;">
+      <span class="sub" style="color:${soon?'var(--muted)':'var(--ink)'};">${label}</span>
+      <span class="toggle ${on?"on":""}" ${soon?'style="opacity:.4;"':''}><span class="knob"></span></span></label>`);
+    if(!soon){ r.querySelector(".toggle").onclick=async(e)=>{
+      const nv=!couple.modules[key]; couple.modules[key]=nv; e.currentTarget.classList.toggle("on",nv);
+      await db.from("couples").update({modules:couple.modules}).eq("id",couple.id); await loadMe();
+    }; }
+    mcard.appendChild(r);
+  });
+  wrap.appendChild(mcard);
+  const out=$(`<button class="ghost-btn" style="margin-top:20px;width:100%;">Sign out</button>`);
+  out.onclick=()=>db.auth.signOut(); wrap.appendChild(out);
+}
+
+boot();
+</script>
+</body>
+</html>
